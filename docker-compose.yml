@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  app:
+    container_name: cnews-headless
+    restart: unless-stopped
+    build:
+      context: ./
+    ports:
+      - "127.0.0.1:${PORT}:4444"
+    environment:
+      DEBUG: ${DEBUG}
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "5"
+        max-size: 10m
