@@ -2,12 +2,13 @@ package routes
 
 import (
 	"github.com/NovikovRoman/cnews-headless/handlers"
+	"github.com/NovikovRoman/cnews-headless/handlers/hlshell"
 	"github.com/gofiber/fiber/v2"
 )
 
-func New(app *fiber.App) {
+func New(app *fiber.App, hlShell *hlshell.HeadlessShell) {
 	app.Get("/", handlers.Homepage())
 
-	app.Post("/html/", handlers.Html())
-	app.Post("/file/", handlers.File())
+	app.Get("/html/", handlers.Html(hlShell))
+	app.Get("/file/", handlers.File(hlShell))
 }
