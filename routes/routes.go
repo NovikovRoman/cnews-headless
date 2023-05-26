@@ -8,5 +8,5 @@ import (
 func New(app *fiber.App) {
 	app.Get("/", handlers.Homepage())
 
-	app.Get("/html/", handlers.Html())
+	app.Post("/html/", handlers.Html())
 }
