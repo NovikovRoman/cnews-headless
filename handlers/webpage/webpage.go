@@ -13,7 +13,7 @@ import (
 
 type Webpage struct {
 	url     string
-	html    string
+	body    []byte
 	cookies []string
 }
 
@@ -25,14 +25,74 @@ func New(u string) (w *Webpage) {
 }
 
 func (w *Webpage) String() string {
-	return w.html
+	return string(w.body)
+}
+
+func (w *Webpage) Bytes() []byte {
+	return w.body
 }
 
 func (w *Webpage) Cookies() []string {
 	return w.cookies
 }
 
-func (w *Webpage) Get(ctx context.Context, selector string, cookies ...string) (err error) {
+func (w *Webpage) File(ctx context.Context, cookies ...string) (err error) {
+	w.cookies = cookies
+	opts := []chromedp.ExecAllocatorOption{
+		chromedp.NoFirstRun,
+		chromedp.Headless,
+		chromedp.IgnoreCertErrors,
+		chromedp.DisableGPU,
+	}
+
+	ctx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer cancel()
+
+	ctx, cancel = chromedp.NewContext(ctx, chromedp.WithLogf(log.Printf))
+	defer cancel()
+
+	ctx, cancel = context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+
+	done := make(chan bool)
+	var requestID network.RequestID
+	chromedp.ListenTarget(ctx, func(v interface{}) {
+		switch ev := v.(type) {
+		case *network.EventRequestWillBeSent:
+			log.Infof("EventRequestWillBeSent: %v: %v", ev.RequestID, ev.Request.URL)
+			if ev.Request.URL == w.url {
+				requestID = ev.RequestID
+			}
+		case *network.EventLoadingFinished:
+			log.Infof("EventLoadingFinished: %v", ev.RequestID)
+			if ev.RequestID == requestID {
+				close(done)
+			}
+		}
+	})
+
+	start := time.Now()
+	err = chromedp.Run(
+		ctx,
+		network.Enable(),
+		w.setCookies(),
+		chromedp.Navigate(w.url),
+		w.getCookies(),
+	)
+	log.Infof("%s %f sec", w.url, time.Since(start).Seconds())
+	if err != nil {
+		return
+	}
+	<-done
+
+	err = chromedp.Run(ctx, chromedp.ActionFunc(func(ctx context.Context) (err error) {
+		w.body, err = network.GetResponseBody(requestID).Do(ctx)
+		return
+	}))
+	return
+}
+
+func (w *Webpage) Html(ctx context.Context, selector string, cookies ...string) (err error) {
 	w.cookies = cookies
 	opts := []chromedp.ExecAllocatorOption{
 		// chromedp.ExecPath("/headless-shell"),
@@ -58,6 +118,8 @@ func (w *Webpage) Get(ctx context.Context, selector string, cookies ...string) (
 		selector = "body"
 	}
 	start := time.Now()
+
+	content := ""
 	err = chromedp.Run(
 		ctx,
 		network.Enable(),
@@ -65,18 +127,14 @@ func (w *Webpage) Get(ctx context.Context, selector string, cookies ...string) (
 		chromedp.Navigate(w.url),
 		chromedp.WaitReady(selector),
 		w.getCookies(),
-		chromedp.OuterHTML("html", &w.html, chromedp.ByQuery),
-		// chromedp.WaitNotVisible(`#trk_jschal_nojs`, chromedp.ByQuery),
-		// cookie(),
-		//chromedp.FullScreenshot(&b, 80),
-		//removeCookie(),
+		chromedp.OuterHTML("html", &content, chromedp.ByQuery),
 	)
 	log.Infof("%s %f sec", w.url, time.Since(start).Seconds())
 	if err != nil {
 		return
 	}
 
-	w.html = html.UnescapeString(w.html)
+	w.body = []byte(html.UnescapeString(content))
 	return
 }
 

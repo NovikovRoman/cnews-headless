@@ -9,16 +9,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func Html() fiber.Handler {
+func File() fiber.Handler {
 	return func(c *fiber.Ctx) (err error) {
 		type request struct {
-			Url      string   `json:"url"`
-			Selector string   `json:"selector"`
-			Cookies  []string `json:"cookies"`
+			Url     string   `json:"url"`
+			Cookies []string `json:"cookies"`
 		}
 
 		type result struct {
-			Html    string   `json:"html"`
+			Body    []byte   `json:"body"`
 			Cookies []string `json:"cookies"`
 			Error   string   `json:"error"`
 		}
@@ -37,12 +36,12 @@ func Html() fiber.Handler {
 		}
 
 		wp := webpage.New(req.Url)
-		if err = wp.Html(c.Context(), req.Selector, req.Cookies...); err != nil {
+		if err = wp.File(c.Context(), req.Cookies...); err != nil {
 			res.Error = err.Error()
 			log.Errorf("%s %v", req.Url, err)
 
 		} else {
-			res.Html = wp.String()
+			res.Body = wp.Bytes()
 			res.Cookies = wp.Cookies()
 		}
 		return c.Status(fiber.StatusOK).JSON(res)

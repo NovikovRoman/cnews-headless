@@ -9,4 +9,5 @@ func New(app *fiber.App) {
 	app.Get("/", handlers.Homepage())
 
 	app.Post("/html/", handlers.Html())
+	app.Post("/file/", handlers.File())
 }
