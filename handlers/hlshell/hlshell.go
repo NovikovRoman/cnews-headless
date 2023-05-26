@@ -2,7 +2,6 @@ package hlshell
 
 import (
 	"context"
-	"fmt"
 	"html"
 	"time"
 
@@ -80,7 +79,6 @@ func (h *HeadlessShell) Html(url, selector string) (content string, err error) {
 		network.Enable(),
 		chromedp.Navigate(url),
 		chromedp.WaitReady(selector),
-		h.getCookies(),
 		chromedp.OuterHTML("html", &content, chromedp.ByQuery),
 	)
 	log.Infof("%s %f sec", url, time.Since(start).Seconds())
@@ -90,19 +88,4 @@ func (h *HeadlessShell) Html(url, selector string) (content string, err error) {
 
 	content = html.UnescapeString(content)
 	return
-}
-
-func (h *HeadlessShell) getCookies() chromedp.Action {
-	return chromedp.ActionFunc(func(ctx context.Context) (err error) {
-		var cookies []*network.Cookie
-		if cookies, err = network.GetCookies().Do(ctx); err != nil {
-			return
-		}
-
-		h.cookies = make([]string, len(cookies))
-		for i, cookie := range cookies {
-			h.cookies[i] = fmt.Sprintf("%s=%s", cookie.Name, cookie.Value)
-		}
-		return
-	})
 }
