@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine3.17 as build
+FROM golang:1.22-alpine3.20 as build
 LABEL stage=builder
 
 ENV GO111MODULE=on
@@ -12,7 +12,7 @@ RUN apk --no-cache add make && go mod download
 COPY . .
 RUN make
 
-FROM chromedp/headless-shell:115.0.5773.4
+FROM chromedp/headless-shell:128.0.6601.2
 RUN apt-get update; apt install ca-certificates tzdata dumb-init -y
 
 ENV TZ="Europe/Moscow"
